@@ -1,4 +1,4 @@
-package org.shekhawat.laucher
+package org.shekhawat.launcher
 
 import org.junit.Test
 

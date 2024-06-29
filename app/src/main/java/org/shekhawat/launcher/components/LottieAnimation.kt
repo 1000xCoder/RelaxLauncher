@@ -7,7 +7,7 @@ import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
-import org.shekhawat.laucher.R
+import org.shekhawat.launcher.R
 
 @Composable
 fun AnimatedPreloader(modifier: Modifier = Modifier) {

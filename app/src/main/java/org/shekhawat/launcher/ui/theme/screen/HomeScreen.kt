@@ -5,6 +5,7 @@ import android.os.BatteryManager
 import android.provider.MediaStore
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,10 +14,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -26,28 +32,26 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import org.shekhawat.laucher.R
+import org.shekhawat.launcher.AppInfo
+import org.shekhawat.launcher.R
 import java.time.LocalDateTime
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen() {
-
+fun HomeScreen(
+    appList: List<AppInfo>,
+    navController: NavHostController
+) {
     val context = LocalContext.current
-    val rightSign = ""
-    val leftSign = ""
-    val quoteSign = "" // "Don’t count the days,\nMake the days count."
     // get battery percentage
     val bm =
         LocalContext.current.getSystemService(android.content.Context.BATTERY_SERVICE) as BatteryManager
@@ -77,63 +81,42 @@ fun HomeScreen() {
         }
     }
 
+    val sheetState = rememberStandardBottomSheetState(
+        initialValue = SheetValue.PartiallyExpanded,
+        skipHiddenState = false
+    )
+    var showBottomSheet by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .pointerInput(Unit) {
+                detectVerticalDragGestures { change, dragAmount ->
+                    if (dragAmount < 0) {
+                        showBottomSheet = true
+                    }
+                }
+            }
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                modifier = Modifier,
-                text = buildAnnotatedString {
-                    withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.onPrimary)) {
-                        append("STAY\n")
-                    }
-                    withStyle(style = SpanStyle(color = Color(0xFFFF9800))) {
-                        append(" FOCUSED\n")
-                    }
-                    withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.onPrimary)) {
-                        append("\uD83E\uDD10")
-                    }
+        if (showBottomSheet) {
+            ModalBottomSheet(
+                onDismissRequest = {
+                    showBottomSheet = false
                 },
-                textAlign = TextAlign.Center,
-                lineHeight = 50.sp,
-                style = MaterialTheme.typography.displaySmall
-            )
+                sheetState = sheetState,
+                modifier = Modifier.fillMaxSize(),
+                shape = if(sheetState.currentValue == SheetValue.Expanded) RectangleShape else RoundedCornerShape(24.dp),
+            ) {
+                // Sheet content
+                AppListScreen(appList = appList, navController = navController)
+            }
         }
-        Text(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(16.dp),
-            text = quoteSign,
-            fontSize = 18.sp,
-            textAlign = TextAlign.Center
-        )
-        Text(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = 24.dp),
-            text = leftSign,
-            fontSize = 18.sp,
-            textAlign = TextAlign.Center,
-            lineHeight = 32.sp
-        )
-        Text(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(18.dp),
-            text = rightSign,
-            fontSize = 18.sp,
-            textAlign = TextAlign.Center,
-            lineHeight = 32.sp
-        )
+
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(32.dp),
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator(
@@ -147,6 +130,7 @@ fun HomeScreen() {
             )
             TimeScreen(batteryPercentage, isCharging, time)
         }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()

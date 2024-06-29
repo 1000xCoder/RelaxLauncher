@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "org.shekhawat.laucher"
+    namespace = "org.shekhawat.launcher"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "org.shekhawat.laucher"
+        applicationId = "org.shekhawat.launcher"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
@@ -60,6 +60,10 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("com.airbnb.android:lottie-compose:6.4.0")
     implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("com.google.android.material:material:1.10.0")
+    implementation("androidx.activity:activity:1.8.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")

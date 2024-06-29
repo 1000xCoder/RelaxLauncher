@@ -11,6 +11,7 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -22,14 +23,13 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import org.shekhawat.launcher.ui.theme.Tutorial1Theme
+import org.shekhawat.launcher.ui.theme.RelaxLauncherTheme
 import org.shekhawat.launcher.ui.theme.screen.AppListScreen
 import org.shekhawat.launcher.ui.theme.screen.PomodoroScreen
 import org.shekhawat.launcher.ui.theme.screen.RootScreen
 import org.shekhawat.launcher.ui.theme.screen.SettingsScreen
 import org.shekhawat.launcher.ui.theme.screen.TimeScreen
 import org.shekhawat.launcher.ui.theme.screen.TimerScreen
-import org.shekhawat.launcher.ui.theme.screen.WidgetsScreen
 import org.shekhawat.launcher.utils.AppNavigation
 
 class AppInfo(val name: String, val icon: Drawable, val intent: Intent?, val packageName: String)
@@ -42,8 +42,12 @@ class MainActivity : ComponentActivity() {
         // check if the app has overlay permission
         // askDrawOverOtherAppsPermissions()
         // showWhenLockedAndTurnScreenOn()
-        hideSystemUI()
+        // hideSystemUI()
         // setDefaultLauncher(this)
+
+        val sharedPrefManager = SharedPrefManager(this)
+        val dynamicColor = sharedPrefManager.getBoolean("dynamic_color", false)
+        val theme = sharedPrefManager.getString("theme", "PURPLE")
 
         val pm = packageManager
         val mainIntent = Intent(Intent.ACTION_MAIN, null)
@@ -64,24 +68,35 @@ class MainActivity : ComponentActivity() {
             val intent = pm.getLaunchIntentForPackage(it.activityInfo.packageName)
             val packageName = it.activityInfo.packageName
             AppInfo(name, icon, intent, packageName)
-        }.sortedBy { it.name }
+        }
+            .filter { it.name != resources.getString(R.string.app_name) }
+            .sortedBy { it.name }
 
         setContent {
-            Tutorial1Theme {
+            RelaxLauncherTheme(
+                theme = ThemeType.valueOf(theme),
+                darkTheme = isSystemInDarkTheme(),
+                dynamicColor = dynamicColor
+            ) {
                 // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = MaterialTheme.colorScheme.primary
                 ) {
                     val navController = rememberNavController()
-//                    handleBackButton(navController)
+                    if(isDefaultLauncher()) {
+                        handleBackButton(navController)
+                    }
 
-                    NavHost(navController, startDestination = AppNavigation.HOME.name) {
+                    NavHost(
+                        navController = navController, startDestination = AppNavigation.HOME.name) {
                         composable(AppNavigation.HOME.name) {
-                            RootScreen(appList = appList)
+                            RootScreen(
+                                appList = appList, navController = navController
+                            )
                         }
                         composable(AppNavigation.APP_LIST.name) {
-                            AppListScreen(appList = appList)
+                            AppListScreen(appList = appList, navController = navController)
                         }
                         composable(AppNavigation.SETTINGS.name) {
                             SettingsScreen()
@@ -94,9 +109,6 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(AppNavigation.TIMER.name) {
                             TimerScreen()
-                        }
-                        composable(AppNavigation.WIDGETS.name) {
-                            WidgetsScreen()
                         }
                         composable(AppNavigation.SEARCH.name) {
                             // SearchScreen()
@@ -145,6 +157,14 @@ class MainActivity : ComponentActivity() {
         if (currentHomePackage != packageName) {
             mainActivity.startActivity(intent)
         }
+    }
+
+    private fun isDefaultLauncher(): Boolean {
+        val intent = Intent(Intent.ACTION_MAIN)
+        intent.addCategory(Intent.CATEGORY_HOME)
+        val resolveInfo = packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+        val currentHomePackage = resolveInfo!!.activityInfo.packageName
+        return currentHomePackage == packageName
     }
 
     private fun handleBackButton(navController: NavHostController) {
