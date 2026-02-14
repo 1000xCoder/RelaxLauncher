@@ -78,12 +78,12 @@ fun RelaxLauncherTheme(
     content: @Composable () -> Unit
 ) {
     val colorScheme =
-        if(dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val context = LocalContext.current
-            if(darkTheme) dynamicDarkColorScheme(context)
+            if (darkTheme) dynamicDarkColorScheme(context)
             else dynamicLightColorScheme(context)
         } else {
-            when(theme) {
+            when (theme) {
                 ThemeType.DARK -> DarkColorScheme
                 ThemeType.LIGHT -> LightColorScheme
                 ThemeType.BLUE -> BlueColorScheme
@@ -96,7 +96,10 @@ fun RelaxLauncherTheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = theme == ThemeType.DARK
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars =
+                theme == ThemeType.LIGHT
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars =
+                theme == ThemeType.LIGHT
         }
     }
 

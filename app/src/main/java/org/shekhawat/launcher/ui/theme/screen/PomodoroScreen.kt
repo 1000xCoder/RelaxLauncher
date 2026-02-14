@@ -96,7 +96,7 @@ fun PomodoroScreen() {
 
     var showBottomSheet by remember { mutableStateOf(false) }
     if (showBottomSheet) {
-        PomodoroSettings() {
+        PomodoroSettings {
             showBottomSheet = false
         }
     }
@@ -131,7 +131,7 @@ fun PomodoroScreen() {
                     ) {
                         PomodoroActionItems(isRunning) { eventType ->
                             run {
-                                Log.d("TESTING", eventType);
+                                Log.d("TESTING", eventType)
                                 when (eventType) {
                                     "play" -> {
                                         isRunning = !isRunning
@@ -228,7 +228,7 @@ private fun PomodoroActionItems(isRunning: Boolean = false, onClick: (String) ->
                 .clickable {
                     // start the timer
                     onClick("play")
-                    audioManager.playSoundEffect(AudioManager.FX_KEY_CLICK,1.0f)
+                    audioManager.playSoundEffect(AudioManager.FX_KEY_CLICK, 1.0f)
                 },
             painter = painterResource(id = R.drawable.play), contentDescription = "Play"
         )
@@ -273,7 +273,7 @@ fun PomodoroWidget(modifier: Modifier, text: String) {
         modifier = modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.1f))
+            .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f))
     ) {
         Text(
             modifier = Modifier.align(Alignment.Center),
@@ -287,7 +287,7 @@ fun PomodoroWidget(modifier: Modifier, text: String) {
                 .fillMaxWidth()
                 .align(Alignment.Center),
             thickness = 10.dp,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
         )
     }
 }

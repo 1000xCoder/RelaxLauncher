@@ -116,7 +116,7 @@ fun TimerWidget(modifier: Modifier, text: String) {
         modifier = modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.1f))
+            .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f))
     ) {
         Text(
             modifier = Modifier.align(Alignment.Center),

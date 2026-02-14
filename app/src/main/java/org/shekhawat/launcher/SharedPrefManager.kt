@@ -1,10 +1,10 @@
 package org.shekhawat.launcher
 
 import android.content.Context
-import android.util.Log
 
 class SharedPrefManager(context: Context) {
-    private val sharedPreferences = context.getSharedPreferences("RelaxLauncherPrefs", Context.MODE_PRIVATE)
+    private val sharedPreferences =
+        context.getSharedPreferences("RelaxLauncherPrefs", Context.MODE_PRIVATE)
 
     fun saveString(key: String, value: String) {
         sharedPreferences.edit().putString(key, value).apply()

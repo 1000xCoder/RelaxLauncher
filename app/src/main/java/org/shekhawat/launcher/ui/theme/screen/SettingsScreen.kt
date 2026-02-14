@@ -1,16 +1,18 @@
 package org.shekhawat.launcher.ui.theme.screen
 
-import android.app.Activity
+import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement.SpaceBetween
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -23,9 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import org.shekhawat.launcher.SharedPrefManager
@@ -34,8 +34,8 @@ import org.shekhawat.launcher.viewmodel.SettingsViewModel
 @Composable
 fun SettingsScreen() {
     // show view model here
-    val activity = LocalContext.current as Activity
-    val sharedPrefManager = remember(activity) { SharedPrefManager(activity) }
+    val context = LocalContext.current
+    val sharedPrefManager = remember(context) { SharedPrefManager(context) }
 
     val viewModel = SettingsViewModel(sharedPrefManager)
     var dynamicColorChecked by remember {
@@ -48,36 +48,41 @@ fun SettingsScreen() {
     val options = listOf("LIGHT", "DARK", "PURPLE", "BLUE")
 
     Column(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
     ) {
+        // Theme Selector
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
-            horizontalArrangement = SpaceBetween,
-            verticalAlignment = CenterVertically
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 modifier = Modifier.weight(1f),
-                text = "Theme", style = MaterialTheme.typography.titleMedium
+                text = "Theme",
+                style = MaterialTheme.typography.titleMedium
             )
-            Column(
+            Box(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth()
-                    .clickable(onClick = { expanded = true })
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.End,
-
+                    .clickable(onClick = { expanded = !expanded })
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+                    .border(
+                        1.dp,
+                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f),
+                        RoundedCornerShape(8.dp)
+                    )
+                    .padding(8.dp)
+                    .align(Alignment.CenterVertically),
+                contentAlignment = Alignment.CenterEnd
             ) {
-                BasicTextField(
-                    value = selectedOption,
-                    onValueChange = { selectedOption = it },
-                    readOnly = true,
+                Text(
                     modifier = Modifier
-                        .fillMaxWidth()
                         .padding(8.dp),
-                    textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onPrimary),
+                    text = selectedOption,
                 )
                 DropdownMenu(
                     expanded = expanded,
@@ -88,7 +93,7 @@ fun SettingsScreen() {
                             onClick = {
                                 selectedOption = option
                                 expanded = false
-                                viewModel.saveString("theme", option)
+                                viewModel.setTheme(option)
                             },
                             text = {
                                 Text(
@@ -102,36 +107,67 @@ fun SettingsScreen() {
             }
         }
 
+        // Dynamic Color Switch
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
-            horizontalArrangement = SpaceBetween,
-            verticalAlignment = CenterVertically
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 modifier = Modifier.weight(1f),
-                text = "Dynamic Color", style = MaterialTheme.typography.titleMedium
+                text = "Dynamic Color",
+                style = MaterialTheme.typography.titleMedium
             )
-            // select from dropdown
-            Switch(
-                checked = dynamicColorChecked, onCheckedChange = {
-                    dynamicColorChecked = it
-                    viewModel.saveBoolean("dynamic_color", it)
-                },
-                modifier = Modifier.align(CenterVertically),
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = MaterialTheme.colorScheme.primary,
-                    checkedTrackColor = MaterialTheme.colorScheme.onPrimary,
-                    uncheckedBorderColor = MaterialTheme.colorScheme.onPrimary,
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(8.dp)
+                    .align(Alignment.CenterVertically),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Switch(
+                    checked = dynamicColorChecked,
+                    onCheckedChange = {
+                        dynamicColorChecked = it
+                        viewModel.saveBoolean("dynamic_color", it)
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.primary,
+                        checkedTrackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f),
+                        uncheckedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                        uncheckedTrackColor = MaterialTheme.colorScheme.primary,
+                        uncheckedBorderColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)
+                    )
                 )
-            )
+            }
+        }
+
+        // Exit Current Launcher Button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .border(
+                    1.dp,
+                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f),
+                    RoundedCornerShape(16.dp)
+                ),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_MAIN)
+                    intent.addCategory(Intent.CATEGORY_HOME)
+                    context.startActivity(intent)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Text(text = "Exit Launcher")
+            }
         }
     }
-}
-
-
-@Composable
-fun ThemeDropdownMenu() {
-
 }

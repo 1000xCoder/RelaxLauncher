@@ -147,7 +147,7 @@ fun HourTimeWidget(
         modifier = modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.1f)),
+            .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)),
     ) {
         Text(
             modifier = Modifier
@@ -175,7 +175,7 @@ fun HourTimeWidget(
                 .align(Alignment.BottomStart)
                 .padding(12.dp),
             text = time.dayOfWeek.name.substring(0, 3),
-            fontSize = 24.sp,
+            fontSize = 32.sp,
             textAlign = TextAlign.Center,
             fontWeight = FontWeight.Bold
         )
@@ -187,7 +187,7 @@ fun AM_PMWidget(modifier: Modifier, time: LocalDateTime) {
     Text(
         modifier = modifier.padding(12.dp),
         text = if (time.hour < 12) "AM" else "PM",
-        fontSize = 24.sp,
+        fontSize = 32.sp,
         textAlign = TextAlign.Center,
         fontWeight = FontWeight.Bold
     )
@@ -199,7 +199,7 @@ fun MinuteTimeWidget(modifier: Modifier, time: LocalDateTime) {
         modifier = modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.1f))
+            .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f))
     ) {
         Text(
             modifier = Modifier.align(Alignment.Center),
@@ -235,7 +235,7 @@ fun SecondTimeWidget(modifier: Modifier, text: String) {
             Text(
                 modifier = Modifier
                     .clip(RoundedCornerShape(4.dp))
-                    .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.1f))
+                    .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f))
                     .padding(start = 4.dp, end = 4.dp),
                 text = text.substring(0, 1),
                 fontSize = 32.sp,
@@ -246,7 +246,7 @@ fun SecondTimeWidget(modifier: Modifier, text: String) {
                 modifier = Modifier
                     .padding(start = 8.dp)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.1f))
+                    .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f))
                     .padding(start = 4.dp, end = 4.dp),
                 text = text.substring(1, 2),
                 fontSize = 32.sp,

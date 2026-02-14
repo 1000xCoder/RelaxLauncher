@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.shekhawat.launcher.SharedPrefManager
 
-class PomodoroViewModel(private val sharedPrefManager: SharedPrefManager): ViewModel() {
+class PomodoroViewModel(private val sharedPrefManager: SharedPrefManager) : ViewModel() {
 
     private val _pomodoroTime = MutableStateFlow(getPomodoroTime())
     val pomodoroTimeStateFlow: Flow<Long> = _pomodoroTime.asStateFlow()

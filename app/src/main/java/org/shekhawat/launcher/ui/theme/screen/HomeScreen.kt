@@ -3,9 +3,9 @@ package org.shekhawat.launcher.ui.theme.screen
 import android.content.Intent
 import android.os.BatteryManager
 import android.provider.MediaStore
+import android.util.Log
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,15 +14,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,25 +27,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.shekhawat.launcher.AppInfo
 import org.shekhawat.launcher.R
+import org.shekhawat.launcher.data.fetchContacts
+import org.shekhawat.launcher.permissions.RequestMicrophonePermission
+import org.shekhawat.launcher.utils.SpeechRecognizerHelper
 import java.time.LocalDateTime
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(
-    appList: List<AppInfo>,
-    navController: NavHostController
-) {
+fun HomeScreen(appList: List<AppInfo>) {
     val context = LocalContext.current
     // get battery percentage
     val bm =
@@ -64,6 +55,15 @@ fun HomeScreen(
     var time by remember {
         mutableStateOf(LocalDateTime.now())
     }
+    // check microphone permission
+    var hasPermission by remember { mutableStateOf(false) }
+
+    RequestMicrophonePermission(
+        context = context,
+        onPermissionResult = { isGranted ->
+            hasPermission = isGranted
+        }
+    )
 
     LaunchedEffect(key1 = Unit) {
         while (true) {
@@ -81,38 +81,10 @@ fun HomeScreen(
         }
     }
 
-    val sheetState = rememberStandardBottomSheetState(
-        initialValue = SheetValue.PartiallyExpanded,
-        skipHiddenState = false
-    )
-    var showBottomSheet by remember { mutableStateOf(false) }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
-                detectVerticalDragGestures { change, dragAmount ->
-                    if (dragAmount < 0) {
-                        showBottomSheet = true
-                    }
-                }
-            }
     ) {
-        if (showBottomSheet) {
-            ModalBottomSheet(
-                onDismissRequest = {
-                    showBottomSheet = false
-                },
-                sheetState = sheetState,
-                modifier = Modifier.fillMaxSize(),
-                shape = if(sheetState.currentValue == SheetValue.Expanded) RectangleShape else RoundedCornerShape(24.dp),
-            ) {
-                // Sheet content
-                AppListScreen(appList = appList, navController = navController)
-            }
-        }
-
-
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -129,6 +101,98 @@ fun HomeScreen(
                 trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f),
             )
             TimeScreen(batteryPercentage, isCharging, time)
+        }
+
+        val isListening = remember { mutableStateOf(false) }
+        var resultText by remember { mutableStateOf("") }
+        val speechRecognizerHelper = remember {
+            SpeechRecognizerHelper(context, isListening) { result ->
+                resultText = result
+                // take action
+                if (result.contains("open")) {
+                    val appName = result.split("open")[1].trim().replace(" ", "")
+                    // ignore white space in both
+                    val app = appList.map {
+                        (
+                                AppInfo(
+                                    it.name.trim().replace(" ", ""),
+                                    it.icon,
+                                    it.intent,
+                                    it.packageName.trim()
+                                )
+                                )
+                    }.find { it.name.equals(appName, ignoreCase = true) }
+                    // show error message when no action performed
+                    if (app == null) {
+                        resultText += "\nApp not found"
+                    } else {
+                        app.intent?.let {
+                            context.startActivity(it)
+                        }
+                    }
+                } else if (result.contains("call")) {
+                    val contacts = fetchContacts(context)
+                    // either search by name or number
+                    val number = contacts.find {
+                        it.name.replace(" ", "").contains(
+                            result.split("call")[1].trim().replace(" ", ""),
+                            ignoreCase = true
+                        )
+                    }?.phoneNumber
+                        ?: result.split("call")[1].trim().replace(" ", "")
+
+                    Log.d("HomeScreen", "Number: $number")
+                    if (isInValidPhoneNumber(number)) {
+                        resultText += "\nContact not found"
+                    } else {
+                        val intent = Intent(Intent.ACTION_CALL).apply {
+                            data = android.net.Uri.parse("tel:$number")
+                        }
+                        context.startActivity(intent)
+                    }
+                }
+            }
+        }
+        Column(
+            modifier = Modifier
+                .padding(bottom = 120.dp, start = 32.dp, end = 32.dp)
+                .align(Alignment.BottomCenter),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clickable {
+                        if (hasPermission) {
+                            // listen to the mic
+                            if (isListening.value) {
+                                isListening.value = false
+                                speechRecognizerHelper.stopListening()
+                            } else {
+                                isListening.value = true
+                                resultText = ""
+                                speechRecognizerHelper.startListening()
+                            }
+                        }
+                    },
+                painter = painterResource(id = R.drawable.microphone),
+                contentDescription = "Mic"
+            )
+
+            Text(
+                text = if (isListening.value) "Listening..." else "Press the button and speak",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+
+            if (resultText.isNotEmpty()) {
+                Text(
+                    text = resultText,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
         }
 
         Row(
@@ -160,6 +224,10 @@ fun HomeScreen(
             )
         }
     }
+}
+
+fun isInValidPhoneNumber(number: String): Boolean {
+    return number.length < 10 || number.contains("[a-zA-Z]".toRegex())
 }
 
 @Composable

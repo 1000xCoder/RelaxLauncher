@@ -1,40 +1,48 @@
 package org.shekhawat.launcher
 
 import android.R.id
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import org.shekhawat.launcher.ui.theme.RelaxLauncherTheme
-import org.shekhawat.launcher.ui.theme.screen.AppListScreen
-import org.shekhawat.launcher.ui.theme.screen.PomodoroScreen
 import org.shekhawat.launcher.ui.theme.screen.RootScreen
-import org.shekhawat.launcher.ui.theme.screen.SettingsScreen
-import org.shekhawat.launcher.ui.theme.screen.TimeScreen
-import org.shekhawat.launcher.ui.theme.screen.TimerScreen
 import org.shekhawat.launcher.utils.AppNavigation
+import org.shekhawat.launcher.viewmodel.SettingsViewModel
 
-class AppInfo(val name: String, val icon: Drawable, val intent: Intent?, val packageName: String)
+class AppInfo(var name: String, val icon: ImageBitmap, val intent: Intent?, val packageName: String)
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var musicBroadcastReceiver: MusicBroadcastReceiver
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,9 +53,13 @@ class MainActivity : ComponentActivity() {
         // hideSystemUI()
         // setDefaultLauncher(this)
 
-        val sharedPrefManager = SharedPrefManager(this)
-        val dynamicColor = sharedPrefManager.getBoolean("dynamic_color", false)
-        val theme = sharedPrefManager.getString("theme", "PURPLE")
+        // Register the broadcast receiver
+        musicBroadcastReceiver = MusicBroadcastReceiver()
+
+        val filter = IntentFilter("org.shekhawat.launcher.NotificationListener")
+        registerReceiver(musicBroadcastReceiver, filter, RECEIVER_EXPORTED)
+
+        shouldGrantNotificationListenerServicePermission()
 
         val pm = packageManager
         val mainIntent = Intent(Intent.ACTION_MAIN, null)
@@ -64,15 +76,27 @@ class MainActivity : ComponentActivity() {
 
         val appList = queryResult.map {
             val name = it.loadLabel(pm).toString()
-            val icon = it.loadIcon(pm)
+            val icon = drawableToBitmap(it.loadIcon(pm)).asImageBitmap()
             val intent = pm.getLaunchIntentForPackage(it.activityInfo.packageName)
             val packageName = it.activityInfo.packageName
             AppInfo(name, icon, intent, packageName)
         }
-            .filter { it.name != resources.getString(R.string.app_name) }
+            .map {
+                (
+                        if (it.name == resources.getString(R.string.app_name))
+                            AppInfo("App Settings", it.icon, it.intent, it.packageName)
+                        else
+                            it
+                        )
+            }
             .sortedBy { it.name }
 
         setContent {
+            val sharedPrefManager = SharedPrefManager(this)
+            val settingViewModel = SettingsViewModel(sharedPrefManager)
+            val dynamicColor = sharedPrefManager.getBoolean("dynamic_color", false)
+            val theme by settingViewModel.theme.collectAsState(settingViewModel.getTheme())
+
             RelaxLauncherTheme(
                 theme = ThemeType.valueOf(theme),
                 darkTheme = isSystemInDarkTheme(),
@@ -84,68 +108,18 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.primary
                 ) {
                     val navController = rememberNavController()
-                    if(isDefaultLauncher()) {
+                    if (isDefaultLauncher()) {
                         handleBackButton(navController)
                     }
-
-                    NavHost(
-                        navController = navController, startDestination = AppNavigation.HOME.name) {
-                        composable(AppNavigation.HOME.name) {
-                            RootScreen(
-                                appList = appList, navController = navController
-                            )
-                        }
-                        composable(AppNavigation.APP_LIST.name) {
-                            AppListScreen(appList = appList, navController = navController)
-                        }
-                        composable(AppNavigation.SETTINGS.name) {
-                            SettingsScreen()
-                        }
-                        composable(AppNavigation.POMODORO.name) {
-                            PomodoroScreen()
-                        }
-                        composable(AppNavigation.TIME.name) {
-                            TimeScreen()
-                        }
-                        composable(AppNavigation.TIMER.name) {
-                            TimerScreen()
-                        }
-                        composable(AppNavigation.SEARCH.name) {
-                            // SearchScreen()
-                        }
-                        composable(AppNavigation.NOTIFICATIONS.name) {
-                            // NotificationsScreen()
-                        }
-                        composable(AppNavigation.RECENT_APPS.name) {
-                            // RecentAppsScreen()
-                        }
-                        composable(AppNavigation.THEME.name) {
-                            // ThemeScreen()
-                        }
-                        composable(AppNavigation.WALLPAPER.name) {
-                            // WallpaperScreen()
-                        }
-                        composable(AppNavigation.LOCK_SCREEN.name) {
-                            // LockScreenScreen()
-                        }
-                        composable(AppNavigation.SCREEN_TIME.name) {
-                            // ScreenTimeScreen()
-                        }
-                        composable(AppNavigation.APP_LOCK.name) {
-                            // AppLockScreen()
-                        }
-                        composable(AppNavigation.APP_INFO.name) {
-                            // AppInfoScreen()
-                        }
-                        composable(AppNavigation.APP_PERMISSIONS.name) {
-                            // AppPermissionsScreen()
-                        }
-                        composable(AppNavigation.APP_ABOUT.name) {
-                            // AppAboutScreen()
-                        }
-                    }
+                    RootScreen(appList = appList)
                 }
             }
+        }
+    }
+
+    private fun shouldGrantNotificationListenerServicePermission() {
+        if (!isNotificationServiceEnabled()) {
+            startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
         }
     }
 
@@ -214,5 +188,28 @@ class MainActivity : ComponentActivity() {
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
         }
+    }
+
+    private fun drawableToBitmap(drawable: Drawable): Bitmap {
+        val bitmap = Bitmap.createBitmap(
+            drawable.intrinsicWidth,
+            drawable.intrinsicHeight,
+            Bitmap.Config.ARGB_8888
+        )
+        val canvas = Canvas(bitmap)
+        drawable.setBounds(0, 0, canvas.width, canvas.width)
+        drawable.draw(canvas)
+        return bitmap
+    }
+
+    private fun isNotificationServiceEnabled(): Boolean {
+        val pkgName = packageName
+        val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+        return flat?.contains(pkgName) == true
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(musicBroadcastReceiver)
     }
 }
