@@ -11,10 +11,43 @@
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.SET_ALARM" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FLASHLIGHT" />
+    <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.WEB_SEARCH" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="google.navigation" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="smsto" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
         </intent>
     </queries>
 
@@ -27,24 +60,17 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_relax_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Tutorial1"
-        tools:targetApi="34">
-        <receiver
-            android:name=".MusicBroadcastReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="org.shekhawat.launcher.NotificationListener" />
-            </intent-filter>
-        </receiver>
-
+        android:theme="@style/Theme.RelaxLauncher"
+        tools:targetApi="35">
         <activity
             android:name=".SettingActivity"
             android:exported="false"
+            android:screenOrientation="portrait"
             android:label="@string/title_activity_setting" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:screenOrientation="portrait"
             android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -64,7 +90,20 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
-        <service android:name=".service.RingtonePlayer" />
+        <service
+            android:name=".service.RingtonePlayer"
+            android:foregroundServiceType="mediaPlayback" />
+        <service
+            android:name=".service.AppUsageMonitorService"
+            android:foregroundServiceType="specialUse"
+            android:exported="false" />
+        <activity
+            android:name=".AppBlockedActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.RelaxLauncher"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop" />
     </application>
 
 </manifest>

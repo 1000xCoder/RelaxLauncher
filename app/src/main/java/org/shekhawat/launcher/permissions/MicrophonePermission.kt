@@ -13,7 +13,11 @@ fun RequestMicrophonePermission(
     context: Context,
     onPermissionResult: (Boolean) -> Unit
 ) {
-    val activity = context as ComponentActivity
+    if (context !is ComponentActivity) {
+        onPermissionResult(false)
+        return
+    }
+
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->

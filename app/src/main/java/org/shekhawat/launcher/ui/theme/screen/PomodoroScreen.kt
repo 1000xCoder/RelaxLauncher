@@ -1,31 +1,41 @@
 package org.shekhawat.launcher.ui.theme.screen
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.media.AudioManager
-import android.util.Log
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -40,176 +50,142 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 import org.shekhawat.launcher.R
 import org.shekhawat.launcher.SharedPrefManager
 import org.shekhawat.launcher.components.PomodoroSettings
-import org.shekhawat.launcher.service.RingtonePlayer
 import org.shekhawat.launcher.viewmodel.PomodoroViewModel
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 
+/**
+ * Fullscreen Pomodoro display.
+ * Reads all state from [ToolsState] so it stays in sync with the sheet and home screen.
+ * No local timer state — single source of truth.
+ */
 @Composable
 fun PomodoroScreen() {
-
-    val activity = LocalContext.current as Activity
-    val sharedPrefManager = remember(activity) { SharedPrefManager(activity) }
-    val viewModel = PomodoroViewModel(sharedPrefManager)
-    val pomodoroTimeInSecondsFlow by viewModel.pomodoroTimeStateFlow.collectAsState(viewModel.getPomodoroTime())
+    val context = LocalContext.current
+    val sharedPrefManager = remember(context) { SharedPrefManager(context) }
+    val viewModel = remember(sharedPrefManager) { PomodoroViewModel(sharedPrefManager) }
+    val pomodoroTimeInSeconds by viewModel.pomodoroTimeStateFlow.collectAsState(viewModel.getPomodoroTime())
 
     val configuration = LocalConfiguration.current
-    var startTime by rememberSaveable { mutableStateOf(LocalDateTime.now()) }
-    var remainingSeconds by rememberSaveable(pomodoroTimeInSecondsFlow) {
-        mutableLongStateOf(
-            pomodoroTimeInSecondsFlow
-        )
-    }
-    var isRunning by rememberSaveable { mutableStateOf(false) }
+
+    // Read from ToolsState — same source as sheet & home screen
+    val isRunning by ToolsState.pomodoroRunning.collectAsState()
+    val remaining by ToolsState.pomodoroRemaining.collectAsState()
+
     var hideActionItems by rememberSaveable { mutableStateOf(false) }
 
-    LaunchedEffect(key1 = Unit) {
-        while (true) {
-            if (isRunning) {
-                remainingSeconds = withContext(Dispatchers.Default) {
-                    startTime.plusSeconds(pomodoroTimeInSecondsFlow).toEpochSecond(ZoneOffset.UTC)
-                        .minus(
-                            LocalDateTime.now().toEpochSecond(
-                                ZoneOffset.UTC
-                            )
-                        )
-                }
-
-                if (remainingSeconds == 0L) {
-                    isRunning = false
-                    // play some sound
-                    val intent = Intent(activity, RingtonePlayer::class.java)
-                    activity.startService(intent)
-                    delay(2000)
-                    remainingSeconds = pomodoroTimeInSecondsFlow
-                }
-            }
-            delay(1000)
-        }
-    }
+    val minutes = remaining / 60
+    val seconds = remaining % 60
 
     var showBottomSheet by remember { mutableStateOf(false) }
     if (showBottomSheet) {
-        PomodoroSettings {
+        PomodoroSettings(viewModel = viewModel) {
             showBottomSheet = false
         }
     }
 
-    when (configuration.orientation) {
-        Configuration.ORIENTATION_LANDSCAPE -> {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable {
-                        hideActionItems = !hideActionItems
-                    },
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                PomodoroWidget(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 48.dp, top = 48.dp, bottom = 48.dp, end = 12.dp),
-                    text = "${remainingSeconds / 60}"
-                )
-                PomodoroWidget(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 12.dp, top = 48.dp, bottom = 48.dp, end = 48.dp),
-                    text = "${remainingSeconds % 60}"
-                )
-                if (!hideActionItems) {
-                    Column(
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        PomodoroActionItems(isRunning) { eventType ->
-                            run {
-                                Log.d("TESTING", eventType)
-                                when (eventType) {
-                                    "play" -> {
-                                        isRunning = !isRunning
-                                        startTime = LocalDateTime.now()
-                                    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { hideActionItems = !hideActionItems }
+    ) {
+        when (configuration.orientation) {
+            Configuration.ORIENTATION_LANDSCAPE -> {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PomodoroWidget(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 48.dp, top = 48.dp, bottom = 48.dp, end = 12.dp),
+                        text = "$minutes"
+                    )
+                    PomodoroWidget(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 12.dp, top = 48.dp, bottom = 48.dp, end = 48.dp),
+                        text = "$seconds"
+                    )
+                }
+            }
 
-                                    "stop" -> {
-                                        isRunning = !isRunning
-                                        remainingSeconds = pomodoroTimeInSecondsFlow
-                                    }
-
-                                    "restart" -> {
-                                        startTime = LocalDateTime.now()
-                                        remainingSeconds = pomodoroTimeInSecondsFlow
-                                    }
-
-                                    "setting" -> {
-                                        showBottomSheet = true
-                                    }
-                                }
-                            }
-                        }
-                    }
+            else -> {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    PomodoroWidget(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 48.dp, top = 48.dp, bottom = 12.dp, end = 48.dp),
+                        text = "$minutes"
+                    )
+                    PomodoroWidget(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 48.dp, top = 12.dp, bottom = 48.dp, end = 48.dp),
+                        text = "$seconds"
+                    )
                 }
             }
         }
 
-        else -> {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable {
-                        hideActionItems = !hideActionItems
-                    },
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
+        // Status label at top
+        AnimatedVisibility(
+            visible = !hideActionItems,
+            modifier = Modifier.align(Alignment.TopCenter),
+            enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { -it },
+            exit = fadeOut(tween(200)) + slideOutVertically(tween(200)) { -it }
+        ) {
+            Text(
+                text = if (isRunning) "Focus Mode" else "Pomodoro",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 2.sp
+                ),
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f),
+                modifier = Modifier.padding(top = 80.dp)
+            )
+        }
+
+        // Action buttons overlaid at bottom center
+        AnimatedVisibility(
+            visible = !hideActionItems,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 2 },
+            exit = fadeOut(tween(200)) + slideOutVertically(tween(200)) { it / 2 }
+        ) {
+            Row(
+                modifier = Modifier.padding(bottom = 64.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                PomodoroWidget(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 48.dp, top = 48.dp, bottom = 12.dp, end = 48.dp),
-                    text = "${remainingSeconds / 60}"
-                )
-                PomodoroWidget(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 48.dp, top = 12.dp, bottom = 48.dp, end = 48.dp),
-                    text = "${remainingSeconds % 60}"
-                )
-                if (!hideActionItems) {
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        PomodoroActionItems(isRunning) { eventType ->
-                            run {
-                                when (eventType) {
-                                    "play" -> {
-                                        isRunning = !isRunning
-                                        startTime = LocalDateTime.now()
-                                    }
+                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-                                    "stop" -> {
-                                        isRunning = !isRunning
-                                        remainingSeconds = pomodoroTimeInSecondsFlow
-                                    }
-
-                                    "restart" -> {
-                                        startTime = LocalDateTime.now()
-                                        remainingSeconds = pomodoroTimeInSecondsFlow
-                                    }
-
-                                    "setting" -> {
-                                        showBottomSheet = true
-                                    }
-                                }
-                            }
-                        }
+                if (!isRunning) {
+                    FullscreenActionButton(iconRes = R.drawable.play, label = "Start") {
+                        ToolsState.startPomodoro(pomodoroTimeInSeconds)
+                        audioManager.playSoundEffect(AudioManager.FX_KEY_CLICK, 1.0f)
+                    }
+                    Spacer(modifier = Modifier.width(24.dp))
+                    FullscreenActionButton(iconRes = R.drawable.setting_new, label = "Settings") {
+                        showBottomSheet = true
+                    }
+                } else {
+                    FullscreenActionButton(iconRes = R.drawable.stop, label = "Stop") {
+                        ToolsState.stopPomodoro(pomodoroTimeInSeconds)
+                    }
+                    Spacer(modifier = Modifier.width(24.dp))
+                    FullscreenActionButton(iconRes = R.drawable.restart, label = "Restart") {
+                        ToolsState.restartPomodoro(pomodoroTimeInSeconds)
+                        ToolsState.startPomodoro(pomodoroTimeInSeconds)
                     }
                 }
             }
@@ -217,52 +193,43 @@ fun PomodoroScreen() {
     }
 }
 
+/**
+ * Shared fullscreen action button — icon inside a translucent circle with a label.
+ * Uses onPrimary colors since fullscreen screens have primary background.
+ */
 @Composable
-private fun PomodoroActionItems(isRunning: Boolean = false, onClick: (String) -> Unit) {
-    val audioManager = LocalContext.current.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    if (!isRunning) {
-        Icon(
+internal fun FullscreenActionButton(
+    iconRes: Int,
+    label: String,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
             modifier = Modifier
-                .padding(12.dp)
-                .size(36.dp)
-                .clickable {
-                    // start the timer
-                    onClick("play")
-                    audioManager.playSoundEffect(AudioManager.FX_KEY_CLICK, 1.0f)
-                },
-            painter = painterResource(id = R.drawable.play), contentDescription = "Play"
-        )
-        Icon(
-            modifier = Modifier
-                .padding(12.dp)
-                .size(28.dp)
-                .clickable {
-                    // start the timer
-                    onClick("setting")
-                },
-            painter = painterResource(id = R.drawable.setting_new), contentDescription = "Settings"
-        )
-    } else {
-        Icon(
-            modifier = Modifier
-                .padding(12.dp)
-                .size(36.dp)
-                .clickable {
-                    // stop the timer
-                    onClick("stop")
-                },
-            painter = painterResource(id = R.drawable.stop), contentDescription = "Stop"
-        )
-
-        Icon(
-            modifier = Modifier
-                .padding(12.dp)
-                .size(36.dp)
-                .clickable {
-                    // restart the timer
-                    onClick("restart")
-                },
-            painter = painterResource(id = R.drawable.restart), contentDescription = "Restart"
+                .size(52.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.12f))
+        ) {
+            Icon(
+                painter = painterResource(id = iconRes),
+                contentDescription = label,
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+            textAlign = TextAlign.Center
         )
     }
 }
@@ -273,21 +240,31 @@ fun PomodoroWidget(modifier: Modifier, text: String) {
         modifier = modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f))
+            .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.1f))
     ) {
-        Text(
+        AnimatedContent(
+            targetState = String.format("%02d", text.toIntOrNull() ?: 0),
             modifier = Modifier.align(Alignment.Center),
-            text = String.format("%02d", text.toInt()),
-            fontSize = 200.sp,
-            textAlign = TextAlign.Center,
-            fontWeight = FontWeight.Bold,
-        )
+            transitionSpec = {
+                (fadeIn(tween(400)) + scaleIn(tween(400), initialScale = 0.92f))
+                    .togetherWith(fadeOut(tween(200)))
+            },
+            label = "pomWidget"
+        ) { displayText ->
+            Text(
+                text = displayText,
+                fontSize = 180.sp,
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
+            )
+        }
         HorizontalDivider(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.Center),
-            thickness = 10.dp,
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+            thickness = 8.dp,
+            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.08f)
         )
     }
 }

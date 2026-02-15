@@ -1,6 +1,5 @@
 package org.shekhawat.launcher.viewmodel
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow

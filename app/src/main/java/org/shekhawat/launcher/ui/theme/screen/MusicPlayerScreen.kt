@@ -34,7 +34,8 @@ fun MusicPlayerScreen(
     ) {
         Text(
             text = currentTrack ?: "No music playing",
-            style = MaterialTheme.typography.titleMedium
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onPrimary
         )
         Spacer(modifier = Modifier.height(16.dp))
         Row(
@@ -42,13 +43,25 @@ fun MusicPlayerScreen(
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             IconButton(onClick = onPrevious) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous")
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Previous",
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
             }
             IconButton(onClick = onPlayPause) {
-                Icon(Icons.Default.PlayArrow, contentDescription = "Play/Pause")
+                Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = "Play/Pause",
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
             }
             IconButton(onClick = onNext) {
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next")
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = "Next",
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
             }
         }
     }
